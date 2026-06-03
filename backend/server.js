@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
-import { connectDB } from "./db.js";
+import { connectDB, isDBConnected } from "./db.js";
 import enquiriesRouter from "./routes/enquiries.js";
 import productsRouter from "./routes/products.js";
 
@@ -20,9 +20,13 @@ const allowed = process.env.CLIENT_ORIGIN
 app.use(cors({ origin: allowed }));
 app.use(express.json());
 
-// Health check
+// Health check — also reports DB status
 app.get("/", (req, res) => {
-  res.json({ status: "ok", service: "Mr Electric Mobility API" });
+  res.json({
+    status: "ok",
+    service: "Mr Electric Mobility API",
+    db: isDBConnected() ? "connected" : "disconnected",
+  });
 });
 
 app.use("/api/enquiries", enquiriesRouter);
@@ -31,13 +35,26 @@ app.use("/api/products", productsRouter);
 // 404 fallback
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`✓ Mr Electric Mobility API running on http://localhost:${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("✗ Failed to start server:", err.message);
-    process.exit(1);
-  });
+// Start the HTTP server FIRST so the app stays up even if the database is down.
+app.listen(PORT, () => {
+  console.log(`✓ Mr Electric Mobility API running on http://localhost:${PORT}`);
+});
+
+// Connect to MongoDB with automatic retries — failure does NOT crash the app.
+async function initDB(attempt = 1) {
+  try {
+    await connectDB();
+  } catch (err) {
+    const delay = Math.min(30000, 5000 * attempt);
+    console.error(
+      `✗ MongoDB connection failed (attempt ${attempt}): ${err.message}. Retrying in ${delay / 1000}s...`
+    );
+    setTimeout(() => initDB(attempt + 1), delay);
+  }
+}
+initDB();
+
+// Don't let an unexpected error kill the process.
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection:", err?.message || err);
+});

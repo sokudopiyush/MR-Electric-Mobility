@@ -16,14 +16,23 @@ export async function connectDB() {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error("MONGODB_URI is not set. Add it to backend/.env");
 
-  client = new MongoClient(uri, { serverSelectionTimeoutMS: 8000 });
-  await client.connect();
-  db = client.db(process.env.MONGODB_DB || "mrelectric");
+  // Build a fresh client each attempt; a failed one is discarded (no leak of `client`).
+  const c = new MongoClient(uri, { serverSelectionTimeoutMS: 8000 });
+  await c.connect();
+
+  client = c;
+  db = c.db(process.env.MONGODB_DB || "mrelectric");
   console.log(`✓ Connected to MongoDB (db: ${db.databaseName})`);
   return db;
 }
 
+export function isDBConnected() {
+  return !!db;
+}
+
 export function getDB() {
-  if (!db) throw new Error("Database not initialised. Call connectDB() first.");
+  // Routes call this inside try/catch, so a thrown error becomes a clean JSON
+  // response instead of crashing the server.
+  if (!db) throw new Error("Database not connected yet");
   return db;
 }
