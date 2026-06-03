@@ -30,7 +30,7 @@ export default function Hero() {
                <li><strong>6+</strong> models in stock</li>
             </ul>
           </div>
-          <div >
+          <div className="hero-figure">
             <Image
               src="/products/acute22.webp"
               alt="Sokudo Acute electric scooter"

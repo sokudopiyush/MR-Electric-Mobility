@@ -59,6 +59,8 @@ export default function Contact() {
             </li>
             <li>
               <span className="contact-ic"><IconPhone width={20} height={20} /></span>
+              <a href="tel:+919999279115">+91 99992 79115</a>,
+              
               <a href="tel:+919873125802">+91 98731 25802</a>
             </li>
             <li>

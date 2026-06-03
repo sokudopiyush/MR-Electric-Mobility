@@ -334,9 +334,24 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* ===== Responsive ===== */
 @media (max-width: 900px) {
+  .hero { padding: 2.6rem 0 3.2rem; }
   .hero-inner, .about-inner, .contact-inner { grid-template-columns: 1fr; }
-  .hero-media { order: -1; }
+  .hero-inner { gap: 1.6rem; }
+  .hero-figure { order: -1; display: grid; place-items: center; }   /* image above text */
+  .hero-figure img { max-width: 360px; margin: 0 auto; }
+  .hero-title { max-width: none; }
+  .hero-sub { margin: 1rem 0 1.4rem; max-width: none; }
   .about-card { order: 2; }
+}
+@media (max-width: 600px) {
+  .hero h1 { font-size: clamp(1.8rem, 8vw, 2.3rem); line-height: 1.12; }
+  .hero-sub { font-size: 1rem; }
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .btn { width: 100%; }
+  .hero-trust { gap: 0.9rem 1.6rem; margin-top: 1.4rem; }
+  .hero-trust li { font-size: 0.85rem; }
+  .hero-trust strong { font-size: 1.2rem; }
+  .hero-figure img { max-width: 280px; }
 }
 @media (max-width: 760px) {
   .nav-links {
