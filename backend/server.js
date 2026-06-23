@@ -13,11 +13,29 @@ const PORT = process.env.PORT || 5000;
 
 // Allow the frontend (Next.js) to call this API. Comma-separated origins in env,
 // or allow all in development if not set.
-const allowed = process.env.CLIENT_ORIGIN
-  ? process.env.CLIENT_ORIGIN.split(",").map((s) => s.trim())
-  : true;
+const allowedList = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean)
+  : null;
 
-app.use(cors({ origin: allowed }));
+// Treat www and apex (non-www) variants of an allowed origin as equivalent so a
+// missing "www." in the env var doesn't trigger a CORS failure in the browser.
+function isAllowedOrigin(origin) {
+  if (!allowedList) return true; // no env set → allow all (dev)
+  if (allowedList.includes(origin)) return true;
+  const stripped = origin.replace("://www.", "://");
+  const withWww = origin.replace("://", "://www.");
+  return allowedList.includes(stripped) || allowedList.includes(withWww);
+}
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow non-browser requests (curl, server-to-server) with no Origin header.
+      if (!origin || isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
+  })
+);
 app.use(express.json());
 
 // Health check — also reports DB status
