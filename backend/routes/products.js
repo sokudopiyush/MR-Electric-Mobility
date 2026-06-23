@@ -66,10 +66,20 @@ function displayName(d) {
   return rawName.toLowerCase().startsWith("sokudo") ? rawName : `Sokudo ${rawName}`;
 }
 
+// URL-friendly slug from the display name, e.g. "Sokudo Acute 2.2" -> "sokudo-acute-2-2"
+function slugify(s) {
+  return (s || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // Compact shape for the product listing / cards.
 function normalize(d) {
   return {
     id: d._id.toString(),
+    slug: slugify(displayName(d)),
     name: displayName(d),
     image: imageFor(d),
     price: formatINR(d.netExShowroomPrice),
@@ -97,7 +107,12 @@ function normalizeDetail(d) {
     ...normalize(d),
     blurb: undefined,
     description: stripHtml(d.description),
-    colors: (d.colors || []).map((c) => c.name).filter(Boolean),
+    colors: (d.colors || [])
+      .filter((c) => c && c.name)
+      .map((c) => ({
+        name: c.name,
+        images: (c.images || []).filter(Boolean),
+      })),
     pricing: {
       exShowroom: formatINR(d.netExShowroomPrice),
       rto: formatINR(d.rto),
@@ -124,16 +139,24 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/products/:id — full specification for a single product
-router.get("/:id", async (req, res) => {
-  const { id } = req.params;
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).json({ error: "Invalid product id." });
-  }
+// GET /api/products/:slug — full specification, looked up by name-slug (id still works)
+router.get("/:slug", async (req, res) => {
+  const { slug } = req.params;
   try {
-    const doc = await getDB()
-      .collection("products")
-      .findOne({ _id: new ObjectId(id) });
+    const col = getDB().collection("products");
+    let doc = null;
+
+    // Backwards-compatible: still allow the Mongo id.
+    if (ObjectId.isValid(slug)) {
+      doc = await col.findOne({ _id: new ObjectId(slug) });
+    }
+    // Primary: match by the URL-friendly name slug.
+    if (!doc) {
+      const docs = await col.find().toArray();
+      const target = slug.toLowerCase();
+      doc = docs.find((d) => slugify(displayName(d)) === target);
+    }
+
     if (!doc) return res.status(404).json({ error: "Product not found." });
     return res.json({ ok: true, product: normalizeDetail(doc) });
   } catch (err) {

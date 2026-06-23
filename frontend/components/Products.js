@@ -61,7 +61,7 @@ export default function Products() {
           <div className="product-grid">
             {products.map((p) => (
               <article className="product-card" key={p.id || p.name}>
-                <Link href={`/products/${p.id}`} className="product-card-link" aria-label={p.name} />
+                <Link href={`/products/${p.slug || p.id}`} className="product-card-link" aria-label={p.name} />
                 <div className="product-media">
                   {p.tag && <span className="product-tag">{p.tag}</span>}
                   {p.image && (

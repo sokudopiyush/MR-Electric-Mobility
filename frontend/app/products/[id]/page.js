@@ -1,180 +1,166 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { IconRange, IconSpeed, IconCharge, IconBattery, IconArrow, IconCheck } from "@/components/Icons";
+import ProductDetailClient from "./ProductDetailClient";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const SITE_URL = "https://mrelectricmobility.com";
 
-// Map colour names to a display swatch colour (solid or half–half gradient).
-const COLOR_MAP = {
-  White: "#ffffff",
-  Brown: "#5C4033",
-  Grey: "#818181",
-  Black: "#000000",
-  Blue: "#0c2065",
-  Red: "#be0900",
-  Yellow: "#eca21e",
-  Orange: "#fc6c0f",
-  // half–half (two-tone)
-  BlackGrey: "linear-gradient(to bottom, #000000 50%, #8f8984 50%)",
-  NavyGrey: "linear-gradient(to bottom, #212e52 50%, #8f8984 50%)",
-  RedWhite: "linear-gradient(to bottom, #d52a29 50%, #ffffff 50%)",
-  YellowWhite: "linear-gradient(to bottom, #eca21e 50%, #ffffff 50%)",
-};
-
-function colorHex(name) {
-  const raw = (name || "").trim();
-  if (COLOR_MAP[raw]) return COLOR_MAP[raw];
-  // normalise (ignore spaces/hyphens/case): "Black Grey" -> "blackgrey" -> BlackGrey
-  const norm = raw.replace(/[\s_-]+/g, "").toLowerCase();
-  for (const key in COLOR_MAP) {
-    if (key.toLowerCase() === norm) return COLOR_MAP[key];
+async function getProduct(slug) {
+  try {
+    const res = await fetch(`${API_URL}/api/products/${slug}`, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.ok ? data.product : null;
+  } catch {
+    return null;
   }
-  return "#9ca3af";
 }
 
-export default function ProductDetail() {
-  const { id } = useParams();
-  const [product, setProduct] = useState(null);
-  const [state, setState] = useState("loading"); // loading | done | error
-  const [activeColor, setActiveColor] = useState(0);
+function absImg(img) {
+  if (!img) return undefined;
+  return img.startsWith("http") ? img : `${SITE_URL}${img}`;
+}
 
-  useEffect(() => {
-    if (!id) return;
-    let active = true;
-    fetch(`${API_URL}/api/products/${id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (!active) return;
-        if (d.ok && d.product) {
-          setProduct(d.product);
-          setState("done");
-        } else {
-          setState("error");
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const p = await getProduct(id);
+  if (!p) {
+    return { title: "Sokudo Electric Scooter | Mr Electric Mobility" };
+  }
+  const price = p.pricing?.exShowroom || p.price || "";
+  const title = `${p.name} Price, Range & Specs in Delhi NCR | Mr Electric Mobility`;
+  const description = `${p.name} electric scooter — ${p.range || ""} range, ${p.speed || ""} top speed, ${p.battery || "LFP"} battery. Ex-showroom ${price}. Book a free test ride at Mr Electric Mobility, authorised Sokudo dealer in Delhi NCR.`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/products/${id}` },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/products/${id}`,
+      type: "website",
+      images: p.image ? [absImg(p.image)] : [],
+    },
+  };
+}
+
+function ProductSeo({ product: p }) {
+  const price = p.pricing?.exShowroom || p.price || "the listed price";
+  const faqs = [
+    {
+      q: `What is the price of the ${p.name}?`,
+      a: `The ${p.name} is priced at ${price} (ex-showroom). Contact Mr Electric Mobility for the latest on-road price, offers and finance options in Delhi NCR.`,
+    },
+    {
+      q: `What is the range and top speed of the ${p.name}?`,
+      a: `The ${p.name} offers a range of ${p.range || "the rated distance"} on a single charge with a top speed of ${p.speed || "the rated speed"}, powered by a ${p.battery || "Lithium LFP"} battery.`,
+    },
+    {
+      q: `Where can I buy the ${p.name} in Delhi NCR?`,
+      a: `You can buy the ${p.name} from Mr Electric Mobility, an authorised Sokudo Electric distributor in Vasundhara, Ghaziabad — serving customers across Delhi NCR, Noida and Delhi. Visit us for a free test ride.`,
+    },
+  ];
+
+  return (
+    <section className="section section-alt">
+      <div className="container">
+        <h2 className="seo-h2">Buy the {p.name} in Delhi NCR</h2>
+        <div className="legal-body">
+          <p>
+            The <strong>{p.name}</strong> is part of the Sokudo electric scooter range
+            available at Mr Electric Mobility, an authorised distributor of Sokudo Electric
+            India in Delhi NCR. With a range of <strong>{p.range || "a dependable distance"}</strong>{" "}
+            on a single charge, a top speed of <strong>{p.speed || "city-friendly speed"}</strong>{" "}
+            and a <strong>{p.battery || "Lithium LFP"}</strong> battery, the {p.name} is built
+            for comfortable, low-cost daily riding.
+          </p>
+          <p>
+            Priced at <strong>{price}</strong> (ex-showroom), the {p.name} offers great value
+            for money. At Mr Electric Mobility you can book a free test ride of the {p.name}{" "}
+            at our Ghaziabad showroom, explore easy finance and EMI options, exchange offers,
+            and authorised after-sales service across Ghaziabad, Noida and Delhi.
+          </p>
+          <p>
+            Like every Sokudo electric scooter, the {p.name} comes with a safe LFP battery and
+            a manufacturer warranty for complete peace of mind. Contact Mr Electric Mobility
+            today to get the best price on the {p.name} in Delhi NCR and switch to clean,
+            affordable electric mobility.
+          </p>
+        </div>
+
+        <h3 className="faq-title">{p.name} — Frequently Asked Questions</h3>
+        <div className="faq">
+          {faqs.map((f) => (
+            <details key={f.q}>
+              <summary>{f.q}</summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+
+      {/* Structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd(p)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faqs)) }}
+      />
+    </section>
+  );
+}
+
+function productJsonLd(p) {
+  const priceNum = (p.pricing?.exShowroom || p.price || "").replace(/[^\d]/g, "");
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p.name,
+    image: p.image ? [absImg(p.image)] : undefined,
+    description: `${p.name} electric scooter with ${p.range || ""} range and ${p.speed || ""} top speed, available at Mr Electric Mobility, authorised Sokudo dealer in Delhi NCR.`,
+    brand: { "@type": "Brand", name: "Sokudo Electric" },
+    ...(priceNum
+      ? {
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "INR",
+            price: priceNum,
+            availability: "https://schema.org/InStock",
+            url: `${SITE_URL}/products/${slugify(p.name)}`,
+            seller: { "@type": "Organization", name: "Mr Electric Mobility" },
+          },
         }
-      })
-      .catch(() => active && setState("error"));
-    return () => {
-      active = false;
-    };
-  }, [id]);
+      : {}),
+  };
+}
+
+function faqJsonLd(faqs) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+}
+
+function slugify(s) {
+  return (s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+export default async function ProductPage({ params }) {
+  const { id } = await params;
+  const product = await getProduct(id);
 
   return (
     <>
       <Navbar />
-      <main className="detail">
-        <div className="container">
-          <Link href="/#products" className="back-link">
-            ← Back to all scooters
-          </Link>
-
-          {state === "loading" && <p className="detail-status">Loading specifications…</p>}
-
-          {state === "error" && (
-            <p className="detail-status error">
-              Couldn&apos;t load this scooter. Please make sure the backend is running and try again.
-            </p>
-          )}
-
-          {state === "done" && product && (
-            <>
-              <div className="detail-top">
-                <div className="detail-media">
-                  {product.image && (
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      width={900}
-                      height={600}
-                      priority
-                      sizes="(max-width: 900px) 92vw, 520px"
-                    />
-                  )}
-                </div>
-
-                <div className="detail-info">
-                  <h1>{product.name}</h1>
-                  {product.description && <p className="detail-desc">{product.description}</p>}
-
-                  <div className="highlight-row">
-                    <div className="highlight"><IconRange width={20} height={20} /><span>{product.range || "—"}</span><small>Range</small></div>
-                    <div className="highlight"><IconSpeed width={20} height={20} /><span>{product.speed || "—"}</span><small>Top speed</small></div>
-                    <div className="highlight"><IconCharge width={20} height={20} /><span>{product.charge || "—"}</span><small>Charge</small></div>
-                    <div className="highlight"><IconBattery width={20} height={20} /><span>{product.battery || "—"}</span><small>Battery</small></div>
-                  </div>
-
-                  <div className="detail-price">
-                    <div>
-                      <span className="price-label">Ex-showroom price</span>
-                      <strong>{product.pricing?.exShowroom || product.price || "Ask us"}</strong>
-                    </div>
-                  </div>
-
-                  {product.colors?.length > 0 && (
-                    <div className="detail-colors">
-                      <span className="price-label">
-                        Colour — <strong>{product.colors[activeColor]}</strong>
-                      </span>
-                      <div className="color-swatches">
-                        {product.colors.map((c, i) => (
-                          <button
-                            type="button"
-                            key={c}
-                            className={`swatch${i === activeColor ? " active" : ""}`}
-                            style={{ background: colorHex(c) }}
-                            onClick={() => setActiveColor(i)}
-                            aria-label={c}
-                            aria-pressed={i === activeColor}
-                            title={c}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <Link href="/#contact" className="btn btn-primary detail-cta">
-                    Book a test ride <IconArrow width={16} height={16} />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Full specifications */}
-              {product.specs?.length > 0 && (
-                <section className="detail-section">
-                  <h2>Full specifications</h2>
-                  <div className="spec-groups">
-                    {product.specs.map((group) => (
-                      <div className="spec-group" key={group.group}>
-                        <h3>{group.group}</h3>
-                        <table className="spec-table">
-                          <tbody>
-                            {group.items.map((item, i) => (
-                              <tr key={i}>
-                                <td>{item.key}</td>
-                                <td>{item.value || "—"}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              <div className="detail-foot">
-                <p><IconCheck width={18} height={18} /> Authorised Sokudo dealer · genuine warranty · service support</p>
-                <Link href="/#contact" className="btn btn-primary">Enquire about the {product.name}</Link>
-              </div>
-            </>
-          )}
-        </div>
-      </main>
+      <ProductDetailClient initialProduct={product} slug={id} />
+      {product && <ProductSeo product={product} />}
       <Footer />
     </>
   );
